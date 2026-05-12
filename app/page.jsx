@@ -1,11 +1,27 @@
 'use client';
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Modal } from 'antd';
 import { EditTwoTone, DeleteTwoTone } from '@ant-design/icons';
 
 export default function Home() {
-  const [tasks, setTasks] = useState([]);
+  // Load tasks from localStorage on first render
+  const [tasks, setTasks] = useState(() => {
+    try {
+      const saved = localStorage.getItem("tasks");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [inputValue, setInputValue] = useState("");
   const [editIndex, setEditIndex] = useState(null); // tracks which task is being edited
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deleteIndex, setDeleteIndex] = useState(null); // tracks which task is pending deletion
+
+  // Save tasks to localStorage whenever tasks change
+  useEffect(() => {
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+  }, [tasks]);
 
   // function for adding OR saving an edited task
   function handleSubmit() {
@@ -29,15 +45,29 @@ export default function Home() {
     setInputValue("");
   }
 
-  // function for removing tasks
-  function removeTask(index) {
-    const newTasks = tasks.filter((_, i) => i !== index);
+  // opens the confirmation modal for the chosen task
+  function confirmDelete(index) {
+    setDeleteIndex(index);
+    setIsModalOpen(true);
+  }
+
+  // called when user confirms deletion in the modal
+  function handleDeleteConfirm() {
+    const newTasks = tasks.filter((_, i) => i !== deleteIndex);
     setTasks(newTasks);
     // if we were editing this task, cancel edit mode
-    if (editIndex === index) {
+    if (editIndex === deleteIndex) {
       setEditIndex(null);
       setInputValue("");
     }
+    setIsModalOpen(false);
+    setDeleteIndex(null);
+  }
+
+  // called when user cancels deletion
+  function handleDeleteCancel() {
+    setIsModalOpen(false);
+    setDeleteIndex(null);
   }
 
   // clicking edit loads the task text into the input
@@ -109,7 +139,7 @@ export default function Home() {
               </div>
               <div className="flex gap-3 items-center justify-center">
                 <DeleteTwoTone
-                  onClick={() => removeTask(index)}
+                  onClick={() => confirmDelete(index)}
                   twoToneColor="#f10b0b"
                   className="text-[25px] cursor-pointer"
                 />
@@ -123,6 +153,26 @@ export default function Home() {
           ))
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        title="Delete Task"
+        open={isModalOpen}
+        onOk={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        okText="Yes, Delete"
+        cancelText="Cancel"
+        okButtonProps={{ danger: true }}
+      >
+        <p>
+          Are you sure you want to delete{" "}
+          <strong className="text-red-500">
+            "{deleteIndex !== null ? tasks[deleteIndex] : ""}"
+          </strong>
+          ?<br />
+          <span className="text-gray-500 text-sm">This action cannot be undone.</span>
+        </p>
+      </Modal>
     </div>
   );
 }
